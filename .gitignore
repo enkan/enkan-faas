@@ -1,0 +1,17 @@
+target/
+*.class
+*.jar
+*.war
+*.ear
+.idea/
+*.iml
+*.iws
+.vscode/
+.DS_Store
+.mvn/
+mvnw
+mvnw.cmd
+.aws-sam/
+.azure/
+.gcp/
+dependency-reduced-pom.xml

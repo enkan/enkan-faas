@@ -1,0 +1,84 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  enkan-faas TODO API — two independent Lambda Functions sharing one repository.
+  Demonstrates per-Function bundling: each Lambda contains only the code path
+  it actually serves.
+
+Globals:
+  Function:
+    Runtime: java25
+    Architectures: [arm64]
+    Timeout: 10
+    SnapStart:
+      ApplyOn: PublishedVersions
+
+Resources:
+
+  TodoReadFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      FunctionName: enkan-todo-read
+      CodeUri: ../../todo-read/
+      Handler: enkan.example.faas.read.handler.AwsLambdaHandler::handleRequest
+      MemorySize: 256
+      Description: Read-only TODO endpoints (GET /todos, GET /todos/{id})
+      Events:
+        GetAll:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TodoApi
+            Path: /todos
+            Method: GET
+        GetOne:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TodoApi
+            Path: /todos/{id}
+            Method: GET
+
+  TodoWriteFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      FunctionName: enkan-todo-write
+      CodeUri: ../../todo-write/
+      Handler: enkan.example.faas.write.handler.AwsLambdaHandler::handleRequest
+      MemorySize: 384
+      Description: Mutating TODO endpoints (POST /todos, PUT /todos/{id}, DELETE /todos/{id})
+      Events:
+        Create:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TodoApi
+            Path: /todos
+            Method: POST
+        Update:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TodoApi
+            Path: /todos/{id}
+            Method: PUT
+        Delete:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TodoApi
+            Path: /todos/{id}
+            Method: DELETE
+
+  TodoApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: prod
+
+Outputs:
+  ApiUrl:
+    Description: Public HTTPS URL of the TODO HTTP API
+    Value: !Sub 'https://${TodoApi}.execute-api.${AWS::Region}.amazonaws.com/prod'
+  TodoReadFunctionArn:
+    Value: !GetAtt TodoReadFunction.Arn
+  TodoWriteFunctionArn:
+    Value: !GetAtt TodoWriteFunction.Arn

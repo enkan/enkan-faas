@@ -1,0 +1,11 @@
+version = 0.1
+
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "enkan-todo"
+resolve_s3 = true
+s3_prefix = "enkan-todo"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
