@@ -60,16 +60,42 @@ The integration tests boot a real `EnkanSystem` in-process, build real
 `APIGatewayV2HTTPEvent` objects, and round-trip all 5 CRUD endpoints through
 the actual `FunctionInvoker` — no cloud SDK network calls.
 
-## Deploying to AWS
+## Deploying to AWS (two modes)
 
 Requires the [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html),
 the AWS CLI configured with credentials, and Java 25 + Maven on `PATH`.
 
+**Mode 1 — JVM + SnapStart (recommended default)**
+
 ```sh
 cd examples/todo-multifunction/deploy/aws
-sam build
-sam deploy --guided
+sam build --template template.yaml
+sam deploy --template template.yaml --guided
 ```
+
+Ships a ~2.1 MB shaded JAR on the `java25` managed runtime. SnapStart is
+enabled by default, so the second and later cold starts restore from a
+memory checkpoint in ~150-400 ms.
+
+**Mode 2 — GraalVM Native Image**
+
+```sh
+cd examples/todo-multifunction/deploy/aws
+sam build --template template-native.yaml
+sam deploy --template template-native.yaml --guided
+```
+
+Ships a native ELF `bootstrap` binary on `provided.al2023`. Cold start is
+~80-200 ms (no JVM warmup), memory footprint is smaller, and there is no
+dependency on SnapStart. The trade-off is a longer build time (~50 s per
+Function on a developer laptop) and the need for a Linux build host
+matching the Lambda architecture (or a GraalVM container as shown in
+`Makefile`).
+
+Both templates define two independent Lambda Functions
+(`TodoReadFunction` / `TodoWriteFunction`) pointing at two independent
+`CodeUri` values. The per-Function bundling guarantee holds identically
+in both modes.
 
 `sam build` invokes the per-Function `build-*` targets in `Makefile`, which
 each run `mvn -am package` against only that Function's Maven module. The

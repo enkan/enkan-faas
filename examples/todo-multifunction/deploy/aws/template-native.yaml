@@ -1,0 +1,80 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  enkan-faas TODO API — GraalVM native binary variant. Uses provided.al2023
+  custom runtime and ships each Lambda as an ELF bootstrap binary rather
+  than a JAR. Cold start is ~80-200 ms (vs ~150-400 ms with JVM+SnapStart).
+  The LogicalIds have a "Native" suffix so the shared Makefile can pick the
+  right build target for each deployment mode.
+
+Globals:
+  Function:
+    Runtime: provided.al2023
+    Architectures: [arm64]
+    Timeout: 10
+
+Resources:
+
+  TodoReadFunctionNative:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      FunctionName: enkan-todo-read-native
+      CodeUri: ../../todo-read/
+      Handler: enkan.example.faas.read.handler.AwsLambdaHandler::handleRequest
+      MemorySize: 256
+      Description: Read-only TODO endpoints (native binary)
+      Events:
+        GetAll:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TodoApi
+            Path: /todos
+            Method: GET
+        GetOne:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TodoApi
+            Path: /todos/{id}
+            Method: GET
+
+  TodoWriteFunctionNative:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      FunctionName: enkan-todo-write-native
+      CodeUri: ../../todo-write/
+      Handler: enkan.example.faas.write.handler.AwsLambdaHandler::handleRequest
+      MemorySize: 384
+      Description: Mutating TODO endpoints (native binary)
+      Events:
+        Create:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TodoApi
+            Path: /todos
+            Method: POST
+        Update:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TodoApi
+            Path: /todos/{id}
+            Method: PUT
+        Delete:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TodoApi
+            Path: /todos/{id}
+            Method: DELETE
+
+  TodoApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: prod
+
+Outputs:
+  ApiUrl:
+    Description: Public HTTPS URL of the TODO HTTP API (native variant)
+    Value: !Sub 'https://${TodoApi}.execute-api.${AWS::Region}.amazonaws.com/prod'

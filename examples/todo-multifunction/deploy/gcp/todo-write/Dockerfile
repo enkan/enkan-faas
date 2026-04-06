@@ -1,17 +1,16 @@
-# Multi-stage build for the todo-write Cloud Run service.
-# Build context is the repository root.
+# Cloud Run container for the todo-write Function (JVM mode).
+# Mirror of todo-read/Dockerfile — see that file for the commentary.
 
 FROM eclipse-temurin:25-jdk AS build
 WORKDIR /src
 COPY . .
-# Build only the todo-write Maven module — todo-read is NOT included in this
-# image. Per-Function bundling: each Cloud Run service ships only what it
-# actually serves.
+RUN apt-get update && apt-get install -y --no-install-recommends maven && rm -rf /var/lib/apt/lists/*
 RUN mvn -pl examples/todo-multifunction/todo-write -am package -DskipTests
 
 FROM eclipse-temurin:25-jdk AS invoker
 WORKDIR /tmp
-RUN mvn -B dependency:copy \
+RUN apt-get update && apt-get install -y --no-install-recommends maven && rm -rf /var/lib/apt/lists/* \
+ && mvn -B dependency:copy \
     -Dartifact=com.google.cloud.functions.invoker:java-function-invoker:1.3.1 \
     -DoutputDirectory=/tmp
 
