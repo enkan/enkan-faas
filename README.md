@@ -40,11 +40,11 @@ Why this is structurally hard elsewhere:
 
 | Module | Status | Purpose |
 |---|---|---|
-| `enkan-component-faas` | Phase 1 | Vendor-neutral core (`RequestAdapter`, `ResponseAdapter`, `FunctionInvoker`) |
-| `enkan-component-faas-aws` | Phase 1 | AWS Lambda adapters (API Gateway HTTP API v2 / Function URL) |
-| `enkan-component-faas-gcp` | Phase 2 | GCP Cloud Run / Cloud Functions adapters |
-| `enkan-component-faas-azure` | Phase 3 | Azure Functions adapters |
-| `examples/todo-multifunction` | Phase 1 | Full multi-Function example with AWS SAM deployment |
+| `enkan-component-faas` | Shipped | Vendor-neutral core (`RequestAdapter`, `ResponseAdapter`, `StreamingResponseAdapter`, `FunctionInvoker`, `StreamingFunctionInvoker`, `FunctionHandlerComponent`) |
+| `enkan-component-faas-aws` | Shipped | AWS Lambda adapters (API Gateway HTTP API v2, Function URL, legacy REST API v1) |
+| `enkan-component-faas-gcp` | Shipped | GCP Cloud Run / Cloud Functions adapters with true streaming |
+| `enkan-component-faas-azure` | Shipped | Azure Functions adapters (`AzureHttpRequestAdapter`, `AzureResponseWriter`) |
+| `examples/todo-multifunction` | Shipped | Full multi-Function example with AWS SAM + GCP Dockerfiles + Azure plugin docs |
 
 ## Quick start (AWS Lambda)
 

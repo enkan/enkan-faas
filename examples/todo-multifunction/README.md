@@ -116,3 +116,48 @@ Functions. Expected:
 ```sh
 sam delete --stack-name enkan-todo
 ```
+
+## Deploying to GCP Cloud Run
+
+Each Function has its own multi-stage `Dockerfile` under `deploy/gcp/`. Build
+and deploy from the repo root:
+
+```sh
+cd /path/to/enkan-faas
+gcloud run deploy enkan-todo-read \
+    --source . \
+    --dockerfile examples/todo-multifunction/deploy/gcp/todo-read/Dockerfile \
+    --region us-central1 \
+    --allow-unauthenticated
+
+gcloud run deploy enkan-todo-write \
+    --source . \
+    --dockerfile examples/todo-multifunction/deploy/gcp/todo-write/Dockerfile \
+    --region us-central1 \
+    --allow-unauthenticated
+```
+
+Each `Dockerfile` builds ONLY its own Maven module, so the resulting Cloud
+Run container image contains only that Function's code. Cold start
+(non-native): 1-3 s. For sub-300 ms cold starts, migrate the Dockerfile to a
+GraalVM native stage (Phase 5 work, out of scope for this example).
+
+## Deploying to Azure Functions
+
+See [deploy/azure/README.md](deploy/azure/README.md). Each Function is
+deployed as its own Azure Function App with its own `host.json` under
+`deploy/azure/todo-read/` and `deploy/azure/todo-write/`.
+
+## Benchmarking cold start
+
+After deployment, run the bench script to measure cold-start duration:
+
+```sh
+./deploy/aws/bench/measure-cold-start.sh 5
+```
+
+The script forces a cold start (via environment variable toggling), invokes
+each Function once, and parses the `REPORT` line from CloudWatch Logs to
+extract `Init Duration`, `Duration`, and `Billed Duration`. Run it once
+before enabling SnapStart and once after — the Init Duration should drop
+from ~2-4 s to ~150-400 ms.

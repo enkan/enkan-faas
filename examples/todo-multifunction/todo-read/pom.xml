@@ -31,6 +31,14 @@
             <artifactId>enkan-component-faas-aws</artifactId>
         </dependency>
         <dependency>
+            <groupId>net.unit8.enkan.faas</groupId>
+            <artifactId>enkan-component-faas-gcp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.unit8.enkan.faas</groupId>
+            <artifactId>enkan-component-faas-azure</artifactId>
+        </dependency>
+        <dependency>
             <groupId>net.unit8.enkan</groupId>
             <artifactId>enkan-system</artifactId>
         </dependency>
