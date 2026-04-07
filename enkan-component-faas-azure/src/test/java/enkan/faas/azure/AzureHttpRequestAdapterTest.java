@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class AzureHttpRequestAdapterTest {
 
-    private final AzureHttpRequestAdapter adapter = new AzureHttpRequestAdapter();
+    private final AzureHttpAdapter adapter = new AzureHttpAdapter();
     private final Supplier<enkan.web.data.HttpRequest> factory = DefaultHttpRequest::new;
 
     @Test

@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ApiGatewayRestResponseAdapterTest {
 
-    private final ApiGatewayRestResponseAdapter adapter = new ApiGatewayRestResponseAdapter();
+    private final ApiGatewayRestAdapter adapter = new ApiGatewayRestAdapter();
 
     @Test
     void mapsSimpleJsonResponse() {

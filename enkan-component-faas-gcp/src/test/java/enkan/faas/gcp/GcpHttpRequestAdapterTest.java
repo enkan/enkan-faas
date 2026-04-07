@@ -18,11 +18,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class GcpHttpRequestAdapterTest {
 
-    private final GcpHttpRequestAdapter adapter = new GcpHttpRequestAdapter();
+    private final GcpHttpAdapter adapter = new GcpHttpAdapter();
     private final Supplier<enkan.web.data.HttpRequest> factory = DefaultHttpRequest::new;
 
     @Test
-    void mapsMethodPathAndHeaders() {
+    void mapsMethodPathAndHeaders() throws IOException {
         FakeHttpRequest event = new FakeHttpRequest();
         event.method = "GET";
         event.path = "/todos";

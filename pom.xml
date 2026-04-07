@@ -41,7 +41,8 @@
 
         <junit.version>5.14.3</junit.version>
         <assertj.version>3.27.7</assertj.version>
-        <jackson.version>2.18.2</jackson.version>
+        <jackson.version>3.1.1</jackson.version>
+        <raoh.version>0.5.0</raoh.version>
 
         <maven.compiler.version>3.13.0</maven.compiler.version>
         <maven.surefire.version>3.5.5</maven.surefire.version>
@@ -54,6 +55,7 @@
         <module>enkan-component-faas-aws</module>
         <module>enkan-component-faas-gcp</module>
         <module>enkan-component-faas-azure</module>
+        <module>enkan-faas-maven-plugin</module>
         <module>examples/todo-multifunction</module>
     </modules>
 
@@ -167,10 +169,14 @@
                 <scope>test</scope>
             </dependency>
             <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
+                <groupId>tools.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
                 <version>${jackson.version}</version>
-                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>net.unit8.raoh</groupId>
+                <artifactId>raoh-json</artifactId>
+                <version>${raoh.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -198,6 +204,11 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-shade-plugin</artifactId>
                     <version>${maven.shade.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>net.unit8.enkan.faas</groupId>
+                    <artifactId>enkan-faas-maven-plugin</artifactId>
+                    <version>${project.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>

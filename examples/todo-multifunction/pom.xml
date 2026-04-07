@@ -12,18 +12,87 @@
     </parent>
 
     <artifactId>todo-multifunction</artifactId>
-    <packaging>pom</packaging>
+    <packaging>jar</packaging>
 
     <name>todo-multifunction</name>
     <description>
-        Example demonstrating per-Function bundling: a single repository with a
-        shared domain layer and two independent AWS Lambda artifacts (todo-read
-        and todo-write) deployed in one SAM stack.
+        Single-module example: one mvn package emits todo-read-shaded.jar and
+        todo-write-shaded.jar via enkan-faas-maven-plugin. Handler classes annotated
+        with @FaasFunction are discovered automatically; each becomes the root of a
+        BFS dependency closure computed via the Java 25 Class File API.
     </description>
 
-    <modules>
-        <module>shared</module>
-        <module>todo-read</module>
-        <module>todo-write</module>
-    </modules>
+    <dependencies>
+        <dependency>
+            <groupId>net.unit8.enkan.faas</groupId>
+            <artifactId>enkan-component-faas-aws</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.unit8.enkan.faas</groupId>
+            <artifactId>enkan-component-faas-gcp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.unit8.enkan.faas</groupId>
+            <artifactId>enkan-component-faas-azure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.unit8.enkan</groupId>
+            <artifactId>enkan-system</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.unit8.enkan</groupId>
+            <artifactId>enkan-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.unit8.enkan</groupId>
+            <artifactId>kotowari</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.unit8.raoh</groupId>
+            <artifactId>raoh-json</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.graalvm.sdk</groupId>
+            <artifactId>graal-sdk</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>net.unit8.enkan.faas</groupId>
+                <artifactId>enkan-faas-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals><goal>bundle</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <project.build.directory>${project.build.directory}</project.build.directory>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>
