@@ -4,118 +4,237 @@
 
 Function-as-a-Service adapters for the [Enkan](https://github.com/enkan/enkan) web framework.
 
-Deploy the same Enkan application to **AWS Lambda**, **Azure Functions**, **Google Cloud Run**, or any FaaS platform — without a `WebServerComponent`. Bring your `ApplicationFactory`, swap a 25-line handler class, ship.
+Deploy the same Enkan application to **AWS Lambda**, **Azure Functions**, or **Google Cloud Functions** — without a `WebServerComponent`. Write one `ApplicationFactory`, annotate it with `@FaasFunction`, run `mvn package`.
 
-## Why this exists
+---
 
-Enkan's `Application.handle(HttpRequest): HttpResponse` is a pure function with zero Servlet API dependency. The middleware chain, kotowari routing, and `HttpRequest` POJOs are all server-agnostic. That makes Enkan a near-perfect fit for serverless: there is nothing to strip out, and adapters only need to translate vendor-specific event types to and from `HttpRequest` / `HttpResponse`.
+## Why Enkan fits FaaS better than other Java frameworks
 
-CRaC support is already built into `EnkanSystem` (`registerCrac()`), so AWS SnapStart works with no user code changes.
+### No scan, no proxy, no reflection on your domain classes
 
-## The differentiating capability: per-Function bundling
+Enkan's DI is an explicit component graph declared in code:
 
-This is the part Spring Cloud Function and Quarkus structurally cannot do.
-
-In `enkan-faas`, **one repository can contain N independent Function deploy artifacts**, each bundling only the components and middleware it actually uses:
-
-```
-my-app/
-├── shared/                    ← common domain layer (Maven module)
-├── todo-read/                 ← Function 1: GET endpoints (independent JAR)
-│   └── handler/AwsLambdaHandler.java
-├── todo-write/                ← Function 2: POST/PUT/DELETE (independent JAR)
-│   └── handler/AwsLambdaHandler.java
-└── deploy/aws/template.yaml   ← single SAM stack, two Lambda resources
+```java
+EnkanSystem.of(
+    "app",    new ApplicationComponent<>(TodoReadApplicationFactory.class.getName()),
+    "lambda", new AwsLambdaComponent(new ApiGatewayV2Adapter())
+).relationships(ComponentRelationship.component("lambda").using("app"));
 ```
 
-The `todo-read` Lambda artifact does not contain `todo-write` classes, and vice versa. Memory budget, IAM scope, and cold start can be tuned per Function. The `examples/todo-multifunction/` project demonstrates this end to end.
+There is no classpath scanning, no annotation processor, no runtime proxy generation. The component graph is the configuration. This means:
 
-Why this is structurally hard elsewhere:
+- **GraalVM Native Image**: reflection surface is minimal and fully enumerable. Cold starts of 80–200 ms are achievable without heroic configuration.
+- **SnapStart (AWS)**: `EnkanSystem.start()` in a `static` block runs before the checkpoint. Warm restore skips the init phase entirely.
 
-- **Spring Boot**: `@ConditionalOn*` auto-configuration assumes a single `ApplicationContext` per build unit. Splitting requires N Maven modules and N copies of the auto-config tax.
-- **Quarkus**: Extension orchestration is build-wide; SPI auto-discovery scans the whole classpath. Function-level subsetting is not first-class.
-- **Enkan**: `EnkanSystem.of(...)` is an explicit component graph. Each Function declares exactly what it needs. Reflection-free, scan-free.
+### `Application.handle` is a pure function
+
+```text
+HttpRequest → middleware chain → HttpResponse
+```
+
+No Servlet API, no thread-local context, no mutable server state. The same `ApplicationFactory` runs on any platform adapter with no changes.
+
+### Per-Function bundling — one repository, N independent Lambda JARs
+
+This is the structural advantage that Spring Cloud Function and Quarkus Funqy do not offer.
+
+Annotate each `ApplicationFactory` with `@FaasFunction`:
+
+```java
+@FaasFunction(name = "todo-read", adapter = ApiGatewayV2Adapter.class)
+public class TodoReadApplicationFactory implements ApplicationFactory<HttpRequest, HttpResponse> { ... }
+
+@FaasFunction(name = "todo-write", adapter = ApiGatewayV2Adapter.class)
+public class TodoWriteApplicationFactory implements ApplicationFactory<HttpRequest, HttpResponse> { ... }
+```
+
+Run `mvn package`. The `enkan-faas-maven-plugin` uses the Java Class File API to trace the transitive dependency closure from each annotated class and produces:
+
+```text
+target/
+  todo-read-shaded.jar    ← contains only classes reachable from TodoReadApplicationFactory
+  todo-write-shaded.jar   ← contains only classes reachable from TodoWriteApplicationFactory
+```
+
+The read JAR does not contain write-side classes, and vice versa. Each Function gets the minimum possible footprint — smaller cold start, smaller attack surface, tighter IAM scope.
+
+Why this is structurally hard in other frameworks:
+
+| Feature | enkan-faas | Spring Cloud Function | Quarkus Funqy |
+| --- | --- | --- | --- |
+| Per-Function bundling in one module | **Yes** | No (N modules, N builds) | No (single deployment unit) |
+| Reflection-free DI | Yes | No (proxy-heavy) | Compile-time only |
+| Servlet API in request path | No | Yes (MVC path) | No |
+| Explicit middleware chain | Yes | No | No |
+
+### Raoh decoders — validation without reflection
+
+Handler methods receive `JsonNode` and decode it with [Raoh](https://github.com/kawasima/raoh) `Decoder`s:
+
+```java
+private static final Decoder<JsonNode, String> CREATE_DECODER =
+        JsonDecoders.field("title", JsonDecoders.string().trim().nonBlank());
+
+public Object handle(HttpRequest request, JsonNode body) {
+    return CREATE_DECODER.decode(body).fold(
+            title -> TodoEncoder.TODO.encode(TodoStore.create(title)),   // Ok
+            issues -> new ApiResponse(400, ProblemEncoder.fromIssues(issues)) // Err
+    );
+}
+```
+
+Domain objects are encoded to `Map<String, Object>` by Raoh `Encoder`s — no Jackson reflection on your classes. `SerDesMiddleware` serializes the map to JSON via `JsonBodyWriter`. The result: **zero reflection metadata needed for domain objects in `reflect-config.json`**.
+
+---
 
 ## Modules
 
-| Module | Status | Purpose |
-|---|---|---|
-| `enkan-component-faas` | Shipped | Vendor-neutral core (`RequestAdapter`, `ResponseAdapter`, `StreamingResponseAdapter`, `FunctionInvoker`, `StreamingFunctionInvoker`, `FunctionHandlerComponent`) |
-| `enkan-component-faas-aws` | Shipped | AWS Lambda adapters (API Gateway HTTP API v2, Function URL, legacy REST API v1) |
-| `enkan-component-faas-gcp` | Shipped | GCP Cloud Run / Cloud Functions adapters with true streaming |
-| `enkan-component-faas-azure` | Shipped | Azure Functions adapters (`AzureHttpRequestAdapter`, `AzureResponseWriter`) |
-| `examples/todo-multifunction` | Shipped | Full multi-Function example with AWS SAM + GCP Dockerfiles + Azure plugin docs |
+| Module | Purpose |
+| --- | --- |
+| `enkan-component-faas` | Vendor-neutral core: `FaasAdapter`, `StreamingFaasAdapter`, `FaasRoutingMiddleware`, `@FaasFunction` |
+| `enkan-component-faas-aws` | AWS Lambda: `ApiGatewayV2Adapter`, `ApiGatewayRestAdapter`, `AwsLambdaComponent` |
+| `enkan-component-faas-gcp` | GCP Cloud Functions: `GcpHttpAdapter`, `GcpFunctionsComponent` (streaming) |
+| `enkan-component-faas-azure` | Azure Functions: `AzureHttpAdapter`, `AzureFunctionsComponent` |
+| `enkan-faas-maven-plugin` | BFS closure + shaded JAR generation per `@FaasFunction` |
+| `examples/todo-multifunction` | Full example: two AWS Lambda Functions in one Maven module |
+
+---
 
 ## Quick start (AWS Lambda)
 
-1. **Configure your Enkan application** as usual — `ApplicationFactory`, `SystemFactory`, controllers.
-2. **Add the dependency** to your Maven module:
+### 1. Add dependencies
 
-   ```xml
-   <dependency>
-     <groupId>net.unit8.enkan.faas</groupId>
-     <artifactId>enkan-component-faas-aws</artifactId>
-     <version>0.1.0-SNAPSHOT</version>
-   </dependency>
-   ```
+```xml
+<dependency>
+  <groupId>net.unit8.enkan.faas</groupId>
+  <artifactId>enkan-component-faas-aws</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+</dependency>
+<dependency>
+  <groupId>net.unit8.raoh</groupId>
+  <artifactId>raoh-json</artifactId>
+  <version>0.5.0</version>
+</dependency>
+```
 
-3. **Write a handler class** (~25 lines):
+Add the plugin to your build:
 
-   ```java
-   public class AwsLambdaHandler
-           implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
+```xml
+<plugin>
+  <groupId>net.unit8.enkan.faas</groupId>
+  <artifactId>enkan-faas-maven-plugin</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <executions>
+    <execution>
+      <goals><goal>bundle</goal></goals>
+    </execution>
+  </executions>
+</plugin>
+```
 
-       private static final FunctionInvoker<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> INVOKER =
-           FunctionInvoker.boot(
-               MyAppSystemFactory::create,
-               "app",
-               new ApiGatewayV2RequestAdapter(),
-               new ApiGatewayV2ResponseAdapter());
+### 2. Write an ApplicationFactory
 
-       @Override
-       public APIGatewayV2HTTPResponse handleRequest(APIGatewayV2HTTPEvent event, Context ctx) {
-           return INVOKER.invoke(event);
-       }
-   }
-   ```
+```java
+@FaasFunction(name = "hello", adapter = ApiGatewayV2Adapter.class)
+public class HelloApplicationFactory implements ApplicationFactory<HttpRequest, HttpResponse> {
 
-4. **Deploy** with AWS SAM (see `examples/todo-multifunction/deploy/aws/`).
+    @Override
+    public Application<HttpRequest, HttpResponse> create(ComponentInjector injector) {
+        ObjectMapper mapper = JsonMapper.builder().build();
 
-The `static final` invoker boots the entire `EnkanSystem` in Lambda's init phase — exactly where AWS SnapStart takes its checkpoint. Cold restore is then a memory snapshot, not a cold JVM startup.
+        WebApplication app = new WebApplication();
+        app.use(new ContentTypeMiddleware());
+        app.use(new ParamsMiddleware());
+        app.use(new FaasRoutingMiddleware(HelloHandler.class, "handle",
+                HttpRequest.class, JsonNode.class));
+        app.use(builder(new ContentNegotiationMiddleware())
+                .set(ContentNegotiationMiddleware::setAllowedTypes, Set.of("application/json"))
+                .build());
+        app.use(builder(new SerDesMiddleware<>())
+                .set(SerDesMiddleware::setBodyWriters, new JsonBodyWriter<>(mapper))
+                .set(SerDesMiddleware::setBodyReaders, new JsonBodyReader<>(mapper))
+                .build());
+        app.use(new ControllerInvokerMiddleware<>(injector));
+        return app;
+    }
+}
+```
 
-## Cold start expectations
+### 3. Write a handler
 
-| Cloud | Mode | Cold start (typical) |
-|---|---|---|
-| AWS Lambda | java25 + SnapStart | 150-400 ms |
-| AWS Lambda | Native (provided.al2023) | 80-200 ms |
-| Azure Functions | java21 managed runtime | 1-3 s |
-| GCP Cloud Run | Native (distroless) | 150-300 ms |
+```java
+public class HelloHandler {
+    public Object handle(HttpRequest request, JsonNode body) {
+        return Map.of("message", "Hello, world!");
+    }
+}
+```
 
-## Comparison with other Java FaaS frameworks
+### 4. Build and deploy
 
-| | enkan-faas | Spring Cloud Function | Quarkus Funqy | Micronaut Function |
-|---|---|---|---|---|
-| Same code → multi-cloud | Yes | Yes | Limited | Yes |
-| Per-Function bundling in one repo | **Yes (first-class)** | No | No | Per-application |
-| Reflection-free DI | Yes | No (proxy-heavy) | Compile-time | Compile-time |
-| GraalVM Native cold start | ~80-200 ms | ~200-350 ms | ~150-300 ms | ~150-300 ms |
-| SnapStart support | Yes (built-in CRaC) | Yes | Yes | Yes |
-| Servlet API in the request path | No | Yes (MVC) | No | No |
+```bash
+mvn package
+# → target/hello-shaded.jar
+```
+
+Deploy `hello-shaded.jar` to AWS Lambda with handler `enkan.faas.generated.HelloHandler`.
+
+---
+
+## Example: todo-multifunction
+
+`examples/todo-multifunction` demonstrates two independent Functions — `todo-read` (GET) and `todo-write` (POST/PUT/DELETE) — in a single Maven module.
+
+**Middleware chain:**
+
+```text
+HTTP event
+  ↓ FaasRoutingMiddleware   — fixes controller/method (replaces RoutingMiddleware)
+  ↓ ContentNegotiationMiddleware
+  ↓ SerDesMiddleware         — deserializes body → JsonNode, serializes response Map → JSON
+  ↓ ControllerInvokerMiddleware
+  ↓ Handler#handle(HttpRequest, JsonNode)
+      └── Raoh Decoder validates input
+          Ok  → TodoEncoder.TODO.encode(domainObject)  → Map (no reflection)
+          Err → ApiResponse(400, ProblemEncoder.fromIssues(issues))  (RFC 9457)
+```
+
+Integration tests verify that the shaded JARs are fully isolated:
+
+```java
+// The read JAR must not contain write-side classes
+assertThat(jf.stream().anyMatch(e -> e.getName().contains("faas/write/")))
+        .isFalse();
+```
+
+---
+
+## GraalVM Native Image
+
+Each platform module ships a `reflect-config.json` covering the vendor SDK event POJOs. Your domain classes require **no reflection registration** when you use Raoh `Encoder`s — `Map<String, Object>` serialization requires no per-class metadata.
+
+```text
+reflect-config.json registrations needed:
+  - AWS event/response POJOs (provided by enkan-component-faas-aws)
+  - Your ApplicationFactory and handler classes (provided by your GraalVM Feature)
+  - Domain classes: none (Raoh Encoder uses method references, not reflection)
+```
+
+---
 
 ## Building
 
-Requires Java 25 (matches Enkan core). The new repo depends on `enkan` `0.14.2-SNAPSHOT` while it stabilizes — install Enkan core locally first, or pull the SNAPSHOT from Sonatype.
+Requires Java 25. Depends on `enkan` `0.14.2-SNAPSHOT` — install Enkan core locally first:
 
 ```bash
-git clone https://github.com/enkan/enkan-faas.git
-cd enkan-faas
-mvn verify
+git clone https://github.com/enkan/enkan
+cd enkan && mvn install -DskipTests
+
+git clone https://github.com/enkan/enkan-faas
+cd enkan-faas && mvn verify
 ```
 
-## Status
-
-Phase 1 (core + AWS) is the initial vertical slice. Phases 2-4 add streaming + GCP, Azure, and polish. See the project board.
+---
 
 ## License
 

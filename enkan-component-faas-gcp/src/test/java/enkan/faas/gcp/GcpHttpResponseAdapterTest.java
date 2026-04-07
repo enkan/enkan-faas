@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class GcpHttpResponseAdapterTest {
 
-    private final GcpHttpResponseAdapter adapter = new GcpHttpResponseAdapter();
+    private final GcpHttpAdapter adapter = new GcpHttpAdapter();
 
     @Test
     void writesStatusHeadersAndStringBody() throws IOException {

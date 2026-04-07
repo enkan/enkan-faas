@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ApiGatewayRestRequestAdapterTest {
 
-    private final ApiGatewayRestRequestAdapter adapter = new ApiGatewayRestRequestAdapter();
+    private final ApiGatewayRestAdapter adapter = new ApiGatewayRestAdapter();
     private final Supplier<HttpRequest> factory = DefaultHttpRequest::new;
 
     @Test

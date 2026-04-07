@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ApiGatewayV2ResponseAdapterTest {
 
-    private final ApiGatewayV2ResponseAdapter adapter = new ApiGatewayV2ResponseAdapter();
+    private final ApiGatewayV2Adapter adapter = new ApiGatewayV2Adapter();
 
     @Test
     void mapsStatusAndPlainTextBody() {
