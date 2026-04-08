@@ -76,6 +76,11 @@ public class BundleMojo extends AbstractMojo {
     // maven-plugin-plugin's ASM-based scanner to fail with "Unsupported class file major version 69".
     private static final String FAAS_FUNCTION_DESC = "Lenkan/faas/FaasFunction;";
 
+    // Lambda function names: letters, digits, hyphens, underscores; 1–64 characters.
+    // https://docs.aws.amazon.com/lambda/latest/api/API_CreateFunction.html#lambda-CreateFunction-request-FunctionName
+    private static final java.util.regex.Pattern FUNCTION_NAME_PATTERN =
+            java.util.regex.Pattern.compile("[a-zA-Z0-9_-]{1,64}");
+
     // ClassFile.of() is stateless (holds only immutable options) and safe to share
     // across threads — the mojo declares threadSafe = true.
     private static final ClassFile CLASS_FILE = ClassFile.of();
@@ -229,6 +234,14 @@ public class BundleMojo extends AbstractMojo {
                                      getLog().warn("@FaasFunction on "
                                                    + internalName.replace('/', '.')
                                                    + " has no 'name' element — skipping.");
+                                     return;
+                                 }
+                                 if (!FUNCTION_NAME_PATTERN.matcher(name).matches()) {
+                                     getLog().warn("@FaasFunction name '" + name + "' on "
+                                                   + internalName.replace('/', '.')
+                                                   + " contains invalid characters or exceeds 64 chars."
+                                                   + " Lambda function names must match [a-zA-Z0-9_-]{1,64}."
+                                                   + " Skipping.");
                                      return;
                                  }
                                  if (adapterDesc == null) {

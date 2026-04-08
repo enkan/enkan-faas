@@ -108,6 +108,59 @@ class ApiGatewayV2RequestAdapterTest {
         assertThat(req.getContentType()).isEqualTo("text/plain");
     }
 
+    // --- stripStagePrefix -------------------------------------------------
+
+    @Test
+    void namedStageIsPrefixStripped() {
+        APIGatewayV2HTTPEvent event = baseEvent("GET", "/prod/todos", null, false);
+        event.getRequestContext().setStage("prod");
+
+        HttpRequest req = adapter.toHttpRequest(event, factory);
+
+        assertThat(req.getUri()).isEqualTo("/todos");
+    }
+
+    @Test
+    void namedStageRootPathBecomesSlash() {
+        APIGatewayV2HTTPEvent event = baseEvent("GET", "/prod", null, false);
+        event.getRequestContext().setStage("prod");
+
+        HttpRequest req = adapter.toHttpRequest(event, factory);
+
+        assertThat(req.getUri()).isEqualTo("/");
+    }
+
+    @Test
+    void defaultStageDoesNotStripPrefix() {
+        APIGatewayV2HTTPEvent event = baseEvent("GET", "/todos", null, false);
+        event.getRequestContext().setStage("$default");
+
+        HttpRequest req = adapter.toHttpRequest(event, factory);
+
+        assertThat(req.getUri()).isEqualTo("/todos");
+    }
+
+    @Test
+    void nullStageDoesNotStripPrefix() {
+        APIGatewayV2HTTPEvent event = baseEvent("GET", "/todos", null, false);
+        event.getRequestContext().setStage(null);
+
+        HttpRequest req = adapter.toHttpRequest(event, factory);
+
+        assertThat(req.getUri()).isEqualTo("/todos");
+    }
+
+    @Test
+    void stageNameNotPartOfPathIsLeftAlone() {
+        // rawPath does not start with /prod — should not be modified
+        APIGatewayV2HTTPEvent event = baseEvent("GET", "/other/todos", null, false);
+        event.getRequestContext().setStage("prod");
+
+        HttpRequest req = adapter.toHttpRequest(event, factory);
+
+        assertThat(req.getUri()).isEqualTo("/other/todos");
+    }
+
     private static APIGatewayV2HTTPEvent baseEvent(String method, String path, String body, boolean base64) {
         APIGatewayV2HTTPEvent event = new APIGatewayV2HTTPEvent();
         event.setVersion("2.0");
