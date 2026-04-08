@@ -23,17 +23,17 @@ import java.util.Set;
  * and reused across multiple {@code analyze()} calls — one per
  * {@code @FaasFunction}-annotated handler.
  *
- * <p>JDK and platform classes ({@code java/}, {@code javax/}, {@code jakarta/},
- * {@code sun/}, {@code com/sun/}, {@code jdk/}) are excluded from the closure:
- * they are never present in project or dependency JARs.
- *
- * <p>Classes missing from the index (e.g. {@code provided}-scope dependencies)
- * are silently skipped — they will not appear in the shaded JAR.
+ * <p>JDK boot classes ({@code java/}, {@code javax/}, {@code sun/}, {@code com/sun/},
+ * {@code jdk/}) are excluded from the closure: they live in the JDK and are never
+ * present in project or dependency JARs. {@code jakarta/} is intentionally NOT excluded
+ * because Jakarta EE APIs (e.g. {@code jakarta.inject}, {@code jakarta.ws.rs}) ship as
+ * regular compile-scope JARs and must be included in the shaded JAR.
+ * Classes not found in the index (e.g. {@code provided}-scope deps) are silently skipped.
  */
 public class ClassDependencyAnalyzer {
 
     private static final List<String> EXCLUDED_PREFIXES = List.of(
-            "java/", "javax/", "jakarta/", "sun/", "com/sun/", "jdk/"
+            "java/", "javax/", "sun/", "com/sun/", "jdk/"
     );
 
     private final ClassIndex index;

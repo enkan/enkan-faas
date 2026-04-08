@@ -140,6 +140,12 @@ public class JarBundler {
                         if (!reachable.contains(ClassIndex.stripClassSuffix(name))) continue;
                     } else if (!name.startsWith("META-INF/")) {
                         continue;
+                    } else if (isSignatureFile(name)) {
+                        // Signature files from signed JARs must be excluded from shaded JARs.
+                        // Including them causes SecurityException: "Invalid signature file digest
+                        // for Manifest main attributes" at class-load time because the shaded JAR
+                        // contents no longer match the embedded signature.
+                        continue;
                     }
 
                     if (result.containsKey(name)) continue; // first-JAR wins
@@ -163,6 +169,21 @@ public class JarBundler {
             }
         }
         return result;
+    }
+
+    /**
+     * Returns true for JAR signature files that must not be included in a shaded JAR.
+     * Signature files (.SF) and their corresponding cryptographic blocks (.DSA, .RSA, .EC)
+     * live in META-INF/ and are tied to the original signed JAR's contents. Including
+     * them in a shaded JAR causes SecurityException at class-load time.
+     */
+    private static boolean isSignatureFile(String entryName) {
+        // entryName is already known to start with "META-INF/"
+        String upper = entryName.toUpperCase(java.util.Locale.ROOT);
+        return upper.endsWith(".SF")
+                || upper.endsWith(".DSA")
+                || upper.endsWith(".RSA")
+                || upper.endsWith(".EC");
     }
 
     private static void writeManifest(ZipOutputStream zos, String mainClass) throws IOException {

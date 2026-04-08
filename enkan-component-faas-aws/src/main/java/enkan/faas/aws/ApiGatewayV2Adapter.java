@@ -66,7 +66,7 @@ public final class ApiGatewayV2Adapter
         request.setRequestMethod(http != null ? http.getMethod() : "GET");
         request.setProtocol(http != null && http.getProtocol() != null
                 ? http.getProtocol() : "HTTP/1.1");
-        request.setUri(event.getRawPath() != null ? event.getRawPath() : "/");
+        request.setUri(stripStagePrefix(event.getRawPath(), rc));
         request.setQueryString(event.getRawQueryString());
         request.setScheme("https");
         request.setServerName(rc != null && rc.getDomainName() != null
@@ -113,6 +113,29 @@ public final class ApiGatewayV2Adapter
             headers.put("Cookie", String.join("; ", cookies));
         }
         return headers;
+    }
+
+    /**
+     * Returns the request path with the API Gateway stage prefix removed.
+     *
+     * <p>API Gateway HTTP API v2 with a named stage (e.g. {@code prod}) prepends
+     * {@code /<stage>} to {@code rawPath}: a request to {@code /todos} arrives
+     * as {@code rawPath=/prod/todos}. Handlers compare against bare paths like
+     * {@code /todos}, so the stage prefix must be stripped here.
+     *
+     * <p>The {@code $default} stage (indicated by an empty string or {@code "$default"}
+     * in {@code rc.getStage()}) never prepends a prefix, so rawPath is returned as-is.
+     */
+    private static String stripStagePrefix(String rawPath,
+                                           APIGatewayV2HTTPEvent.RequestContext rc) {
+        if (rawPath == null) return "/";
+        if (rc == null) return rawPath;
+        String stage = rc.getStage();
+        if (stage == null || stage.isEmpty() || "$default".equals(stage)) return rawPath;
+        String prefix = "/" + stage;
+        if (rawPath.startsWith(prefix + "/")) return rawPath.substring(prefix.length());
+        if (rawPath.equals(prefix)) return "/";
+        return rawPath;
     }
 
     private static InputStream decodeBody(APIGatewayV2HTTPEvent event) {
