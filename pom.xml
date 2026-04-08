@@ -16,13 +16,13 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <!--
-            Java 25 is required because we depend on Enkan 0.14.2-SNAPSHOT which targets Java 25.
+            Java 25 is required because we depend on Enkan 0.15.0 which targets Java 25.
             The runtime target on AWS Lambda is therefore the java25 managed runtime, or a
             GraalVM 25 native binary on provided.al2023.
         -->
         <java.version>25</java.version>
 
-        <enkan.version>0.14.2-SNAPSHOT</enkan.version>
+        <enkan.version>0.15.0</enkan.version>
 
         <!-- Mirror Enkan core's surefire JVM flags so MixinUtils etc. work in tests. -->
         <surefire.argLine.common>
