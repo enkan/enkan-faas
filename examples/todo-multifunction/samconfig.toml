@@ -1,5 +1,10 @@
 version = 0.1
 
+# Usage:
+#   cd examples/todo-multifunction
+#   sam build                   # builds → .aws-sam/build/
+#   sam deploy                  # deploys from .aws-sam/build/template.yaml (auto-detected)
+
 [default]
 [default.build]
 [default.build.parameters]
@@ -7,12 +12,12 @@ template = "deploy/aws/template.yaml"
 
 [default.deploy]
 [default.deploy.parameters]
-stack_name     = "enkan-todo"
-resolve_s3     = true
-s3_prefix      = "enkan-todo"
-region         = "ap-northeast-1"
+stack_name        = "enkan-todo"
+resolve_s3        = true
+s3_prefix         = "enkan-todo"
+region            = "ap-northeast-1"
 confirm_changeset = true
-capabilities   = "CAPABILITY_IAM"
+capabilities      = "CAPABILITY_IAM"
 
 [native]
 [native.build]
@@ -21,9 +26,9 @@ template = "deploy/aws/template-native.yaml"
 
 [native.deploy]
 [native.deploy.parameters]
-stack_name     = "enkan-todo-native"
-resolve_s3     = true
-s3_prefix      = "enkan-todo-native"
-region         = "ap-northeast-1"
+stack_name        = "enkan-todo-native"
+resolve_s3        = true
+s3_prefix         = "enkan-todo-native"
+region            = "ap-northeast-1"
 confirm_changeset = true
-capabilities   = "CAPABILITY_IAM"
+capabilities      = "CAPABILITY_IAM"

@@ -24,12 +24,14 @@ EXAMPLE_PACKAGE = cd "$(REPO_ROOT)" && mvn package \
 build-TodoReadFunction:
 	$(PREREQ_INSTALL)
 	$(EXAMPLE_PACKAGE)
-	cp "$(REPO_ROOT)/$(MODULE)/target/todo-read-shaded.jar" "$(ARTIFACTS_DIR)/"
+	mkdir -p "$(ARTIFACTS_DIR)/lib"
+	cp "$(REPO_ROOT)/$(MODULE)/target/todo-read-shaded.jar" "$(ARTIFACTS_DIR)/lib/"
 
 build-TodoWriteFunction:
 	$(PREREQ_INSTALL)
 	$(EXAMPLE_PACKAGE)
-	cp "$(REPO_ROOT)/$(MODULE)/target/todo-write-shaded.jar" "$(ARTIFACTS_DIR)/"
+	mkdir -p "$(ARTIFACTS_DIR)/lib"
+	cp "$(REPO_ROOT)/$(MODULE)/target/todo-write-shaded.jar" "$(ARTIFACTS_DIR)/lib/"
 
 # --- GraalVM native (provided.al2023) ----------------------------------------
 # Must run on Linux arm64. On macOS use Docker:

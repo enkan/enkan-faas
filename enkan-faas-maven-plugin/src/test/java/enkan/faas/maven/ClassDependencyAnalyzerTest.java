@@ -1,5 +1,6 @@
 package enkan.faas.maven;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
@@ -26,17 +27,25 @@ class ClassDependencyAnalyzerTest {
                 .isEqualTo(expected.strip());
     }
 
-    @ParameterizedTest(name = "normalise({0}) == null (JDK prefix)")
+    @ParameterizedTest(name = "normalise({0}) == null (JDK boot prefix)")
     @ValueSource(strings = {
         "java/lang/String",
         "javax/sql/DataSource",
-        "jakarta/servlet/http/HttpServlet",
         "sun/misc/Unsafe",
         "com/sun/proxy/$Proxy0",
         "jdk/internal/reflect/Reflection",
     })
     void normalise_returnsNullForJdkClasses(String raw) {
         assertThat(ClassDependencyAnalyzer.normalise(raw)).isNull();
+    }
+
+    @Test
+    void normalise_returnsNonNullForJakartaClasses() {
+        // jakarta.* ships as regular compile-scope JARs (e.g. jakarta.inject-api),
+        // so the BFS must NOT exclude it by prefix — missing classes are silently
+        // skipped at BFS traversal time when absent from the class index.
+        assertThat(ClassDependencyAnalyzer.normalise("jakarta/inject/Inject"))
+                .isEqualTo("jakarta/inject/Inject");
     }
 
     @ParameterizedTest(name = "normalise({0}) == null (primitive/short)")
