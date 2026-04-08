@@ -54,12 +54,10 @@
     </dependencies>
 
     <build>
-        <!-- Filter plugin.xml so ${project.version} is resolved at build time,
-             keeping the descriptor in sync when the project version changes. -->
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
-                <filtering>true</filtering>
+                <filtering>false</filtering>
             </resource>
         </resources>
         <plugins>

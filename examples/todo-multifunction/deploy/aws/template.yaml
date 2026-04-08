@@ -1,17 +1,22 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  enkan-faas TODO API — two independent Lambda Functions sharing one repository.
-  Demonstrates per-Function bundling: each Lambda contains only the code path
-  it actually serves.
+  enkan-faas TODO API — two independent Lambda Functions from one Maven module.
+  The enkan-faas-maven-plugin generates todo-read-shaded.jar and
+  todo-write-shaded.jar, each containing only the classes reachable from
+  the @FaasFunction-annotated ApplicationFactory.
 
 Globals:
   Function:
     Runtime: java25
     Architectures: [arm64]
     Timeout: 10
+    MemorySize: 256
     SnapStart:
       ApplyOn: PublishedVersions
+    Environment:
+      Variables:
+        JAVA_TOOL_OPTIONS: "-XX:+TieredCompilation -XX:TieredStopAtLevel=1"
 
 Resources:
 
@@ -21,9 +26,8 @@ Resources:
       BuildMethod: makefile
     Properties:
       FunctionName: enkan-todo-read
-      CodeUri: ../../todo-read/
-      Handler: enkan.example.faas.read.handler.AwsLambdaHandler::handleRequest
-      MemorySize: 256
+      CodeUri: ../../
+      Handler: enkan.example.faas.read.generated.TodoReadHandler::handleRequest
       Description: Read-only TODO endpoints (GET /todos, GET /todos/{id})
       Events:
         GetAll:
@@ -45,8 +49,8 @@ Resources:
       BuildMethod: makefile
     Properties:
       FunctionName: enkan-todo-write
-      CodeUri: ../../todo-write/
-      Handler: enkan.example.faas.write.handler.AwsLambdaHandler::handleRequest
+      CodeUri: ../../
+      Handler: enkan.example.faas.write.generated.TodoWriteHandler::handleRequest
       MemorySize: 384
       Description: Mutating TODO endpoints (POST /todos, PUT /todos/{id}, DELETE /todos/{id})
       Events:

@@ -1,11 +1,9 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  enkan-faas TODO API — GraalVM native binary variant. Uses provided.al2023
-  custom runtime and ships each Lambda as an ELF bootstrap binary rather
-  than a JAR. Cold start is ~80-200 ms (vs ~150-400 ms with JVM+SnapStart).
-  The LogicalIds have a "Native" suffix so the shared Makefile can pick the
-  right build target for each deployment mode.
+  enkan-faas TODO API — GraalVM native binary variant.
+  Uses provided.al2023 custom runtime; cold start ~80-200 ms.
+  Must be built on Linux arm64 (or via Docker) — see Makefile comments.
 
 Globals:
   Function:
@@ -21,10 +19,10 @@ Resources:
       BuildMethod: makefile
     Properties:
       FunctionName: enkan-todo-read-native
-      CodeUri: ../../todo-read/
-      Handler: enkan.example.faas.read.handler.AwsLambdaHandler::handleRequest
+      CodeUri: ../../
+      Handler: enkan.example.faas.read.generated.TodoReadHandler::handleRequest
       MemorySize: 256
-      Description: Read-only TODO endpoints (native binary)
+      Description: Read-only TODO endpoints — native binary
       Events:
         GetAll:
           Type: HttpApi
@@ -45,10 +43,10 @@ Resources:
       BuildMethod: makefile
     Properties:
       FunctionName: enkan-todo-write-native
-      CodeUri: ../../todo-write/
-      Handler: enkan.example.faas.write.handler.AwsLambdaHandler::handleRequest
+      CodeUri: ../../
+      Handler: enkan.example.faas.write.generated.TodoWriteHandler::handleRequest
       MemorySize: 384
-      Description: Mutating TODO endpoints (native binary)
+      Description: Mutating TODO endpoints — native binary
       Events:
         Create:
           Type: HttpApi
@@ -76,5 +74,5 @@ Resources:
 
 Outputs:
   ApiUrl:
-    Description: Public HTTPS URL of the TODO HTTP API (native variant)
+    Description: Public HTTPS URL of the TODO HTTP API (native)
     Value: !Sub 'https://${TodoApi}.execute-api.${AWS::Region}.amazonaws.com/prod'
