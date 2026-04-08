@@ -12,6 +12,7 @@ Globals:
     Architectures: [arm64]
     Timeout: 10
     MemorySize: 256
+    AutoPublishAlias: live
     SnapStart:
       ApplyOn: PublishedVersions
     Environment:
